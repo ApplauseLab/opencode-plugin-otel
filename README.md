@@ -168,6 +168,17 @@ export OPENCODE_DISABLE_METRICS="cache.count,session.duration,session.token.tota
 | `retry.count` | API retry counter — not emitted by Claude Code |
 | `message.count` | Completed message counter — not emitted by Claude Code |
 
+### SigNoz example
+
+```bash
+export OPENCODE_ENABLE_TELEMETRY=1
+export OPENCODE_OTLP_ENDPOINT="https://ingest.us.signoz.cloud:443"
+export OPENCODE_OTLP_HEADERS="signoz-ingestion-key=<SIGNOZ_INGESTION_KEY>"
+```
+
+> Use `https://ingest.in.signoz.cloud:443` for India, `https://ingest.eu2.signoz.cloud:443` for EU2, etc.
+> See [SigNoz setup docs](https://signoz.io/docs/cloud/) for all regions. 
+
 ### Datadog example
 
 ```bash

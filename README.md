@@ -31,8 +31,8 @@ An [opencode](https://opencode.ai) plugin that exports telemetry via OpenTelemet
 | `opencode.session.count` | Counter | Incremented on each `session.created` event |
 | `opencode.token.usage` | Counter | Per token type: `input`, `output`, `reasoning`, `cacheRead`, `cacheCreation` |
 | `opencode.cost.usage` | Counter | USD cost per completed assistant message |
-| `opencode.lines_of_code.count` | Counter | Net lines added/removed in the session. The handler emits only the positive delta since the previous `session.diff`, so summing the counter yields the true cumulative total without double-counting. |
-| `opencode.lines_of_code.total` | Gauge | Current cumulative lines added/removed for the session, refreshed on every `session.diff`. Drops back to `0` if opencode reports a revert to baseline. |
+| `opencode.lines_of_code.count` | Counter | Emits only the positive delta since the previous `session.diff`, so summing the counter avoids the old double-counting. **Caveats:** when opencode reports a cumulative drop (a revert), the negative delta is skipped — so summing the counter reflects gross additions across non-revert deltas and can overstate net after a revert. Rewrites that happen and are reverted *within a single message* aren't captured at all (opencode publishes the per-message cumulative, not intra-message churn). Use `opencode.lines_of_code.total` for the authoritative live total. |
+| `opencode.lines_of_code.total` | Gauge | Current cumulative lines added/removed for the session, refreshed on every `session.diff`. Drops back to `0` if opencode reports a revert to baseline. Authoritative for "what does this session currently amount to". |
 | `opencode.commit.count` | Counter | Git commits detected via bash tool |
 | `opencode.tool.duration` | Histogram | Tool execution time in milliseconds |
 | `opencode.cache.count` | Counter | Cache activity per message: `type=cacheRead` or `type=cacheCreation` |

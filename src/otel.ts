@@ -147,11 +147,11 @@ export function createInstruments(prefix: string): Instruments {
     }),
     linesCounter: meter.createCounter(`${prefix}lines_of_code.count`, {
       unit: "{line}",
-      description: "Per-event delta of lines added/removed — sum over a session yields the net cumulative total.",
+      description: "Positive per-event delta of lines added/removed; sum reflects gross additions across non-revert deltas and may overstate net after a revert. Use lines_of_code.total for the authoritative live cumulative value.",
     }),
     linesTotalGauge: meter.createGauge(`${prefix}lines_of_code.total`, {
       unit: "{line}",
-      description: "Cumulative lines added/removed in the current session, refreshed on every session.diff.",
+      description: "Authoritative live cumulative lines added/removed for the current session, refreshed on every session.diff; drops back to 0 if opencode reports a revert to baseline.",
     }),
     commitCounter: meter.createCounter(`${prefix}commit.count`, {
       unit: "{commit}",

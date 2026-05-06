@@ -145,6 +145,7 @@ export function handleSessionError(e: EventSessionError, ctx: HandlerContext) {
   const rawID = e.properties.sessionID
   const sessionID = rawID ?? "unknown"
   const error = errorSummary(e.properties.error)
+  const totals = rawID ? ctx.sessionTotals.get(rawID) : undefined
   if (rawID) {
     ctx.sessionTotals.delete(rawID)
     ctx.sessionDiffTotals.delete(rawID)
@@ -154,7 +155,6 @@ export function handleSessionError(e: EventSessionError, ctx: HandlerContext) {
   if (rawID) {
     const sessionSpan = ctx.sessionSpans.get(rawID)
     if (sessionSpan) {
-      const totals = ctx.sessionTotals.get(rawID)
       if (totals) sessionSpan.setAttribute(AGENT_NAME, totals.agent)
       sessionSpan.setStatus({ code: SpanStatusCode.ERROR, message: error })
       sessionSpan.setAttribute("error", error)

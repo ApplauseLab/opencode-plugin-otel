@@ -1,6 +1,6 @@
 import { SeverityNumber } from "@opentelemetry/api-logs"
 import type { EventSessionDiff, EventCommandExecuted } from "@opencode-ai/sdk"
-import { isMetricEnabled } from "../util.ts"
+import { isMetricEnabled, setBoundedMap } from "../util.ts"
 import type { HandlerContext } from "../types.ts"
 
 /**
@@ -25,7 +25,7 @@ export function handleSessionDiff(e: EventSessionDiff, ctx: HandlerContext) {
   const prev = ctx.sessionDiffTotals.get(sessionID) ?? { additions: 0, deletions: 0 }
   const deltaAdded = totalAdded - prev.additions
   const deltaRemoved = totalRemoved - prev.deletions
-  ctx.sessionDiffTotals.set(sessionID, { additions: totalAdded, deletions: totalRemoved })
+  setBoundedMap(ctx.sessionDiffTotals, sessionID, { additions: totalAdded, deletions: totalRemoved })
 
   const baseAttrs = { ...ctx.commonAttrs, "session.id": sessionID }
 

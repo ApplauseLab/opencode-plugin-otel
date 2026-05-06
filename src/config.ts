@@ -91,6 +91,19 @@ export function loadConfig(): PluginConfig {
   }
 }
 
+export function resolveHelperPath(
+  helper: string | undefined,
+  directory: string | undefined,
+  worktree: string | undefined,
+): string | undefined {
+  if (!helper) return helper
+  const projectRoot = worktree ?? directory ?? process.cwd()
+  return helper
+    .replaceAll("${PROJECT_ROOT}", projectRoot)
+    .replaceAll("${WORKTREE}", worktree ?? projectRoot)
+    .replaceAll("${DIRECTORY}", directory ?? projectRoot)
+}
+
 /**
  * Resolves an opencode log level string to a `Level`.
  * Returns `current` unchanged when the input does not match a known level.

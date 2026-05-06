@@ -68,7 +68,7 @@ export function buildHttpSignalUrl(endpoint: string, signal: "traces" | "metrics
  * `BasicTracerProvider` backed by OTLP exporters (gRPC or HTTP/protobuf)
  * pointed at `endpoint`, and registers them as the global providers.
  */
-export function setupOtel(
+export async function setupOtel(
   endpoint: string,
   protocol: "grpc" | "http/protobuf",
   metricsInterval: number,
@@ -76,10 +76,17 @@ export function setupOtel(
   version: string,
   otlpHeaders?: string,
   otlpHeadersHelper?: string,
-): OtelProviders {
+): Promise<OtelProviders> {
   const resource = buildResource(version)
   const staticHeaders = parseOtlpHeaders(otlpHeaders)
   const dynamicHeaders = new DynamicHeaders(staticHeaders, otlpHeadersHelper)
+  if (otlpHeadersHelper) {
+    try {
+      await dynamicHeaders.refresh()
+    } catch (error) {
+      console.warn("[opencode-plugin-otel] Failed to prewarm OTLP headers helper. Falling back to refresh-on-auth-failure.", error)
+    }
+  }
   const makeMetricExporter = (headers: HeadersMap) => protocol === "http/protobuf"
     ? new OTLPHttpMetricExporter({ url: buildHttpSignalUrl(endpoint, "metrics"), headers })
     : new OTLPMetricExporter({ url: endpoint, metadata: createGrpcMetadata(headers) })

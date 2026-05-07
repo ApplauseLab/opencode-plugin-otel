@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test"
-import { parseEnvInt, loadConfig, resolveLogLevel } from "../src/config.ts"
+import { parseEnvInt, loadConfig, resolveHelperPath, resolveLogLevel } from "../src/config.ts"
 
 describe("parseEnvInt", () => {
   test("returns fallback when env var is unset", () => {
@@ -275,5 +275,21 @@ describe("resolveLogLevel", () => {
   test("returns current level for unknown value", () => {
     expect(resolveLogLevel("verbose", "info")).toBe("info")
     expect(resolveLogLevel("", "warn")).toBe("warn")
+  })
+})
+
+describe("resolveHelperPath", () => {
+  test("returns undefined when helper is unset", () => {
+    expect(resolveHelperPath(undefined, "/repo/current", "/repo")).toBeUndefined()
+  })
+
+  test("expands project placeholders", () => {
+    expect(resolveHelperPath("${PROJECT_ROOT}/bin/helper.sh", "/repo/current", "/repo")).toBe("/repo/bin/helper.sh")
+    expect(resolveHelperPath("${WORKTREE}/bin/helper.sh", "/repo/current", "/repo")).toBe("/repo/bin/helper.sh")
+    expect(resolveHelperPath("${DIRECTORY}/bin/helper.sh", "/repo/current", "/repo")).toBe("/repo/current/bin/helper.sh")
+  })
+
+  test("falls back to directory when worktree is unavailable", () => {
+    expect(resolveHelperPath("${PROJECT_ROOT}/bin/helper.sh", "/repo/current", undefined)).toBe("/repo/current/bin/helper.sh")
   })
 })

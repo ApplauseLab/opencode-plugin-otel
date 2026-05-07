@@ -17,7 +17,7 @@ import type {
   EventCommandExecuted,
 } from "@opencode-ai/sdk"
 import { LEVELS, type Level, type HandlerContext } from "./types.ts"
-import { loadConfig, resolveLogLevel } from "./config.ts"
+import { loadConfig, resolveHelperPath, resolveLogLevel } from "./config.ts"
 import { probeEndpoint } from "./probe.ts"
 import { setupOtel, createInstruments } from "./otel.ts"
 import { handleSessionCreated, handleSessionIdle, handleSessionError, handleSessionStatus } from "./handlers/session.ts"
@@ -32,8 +32,9 @@ const PLUGIN_VERSION: string = (pkg as { version?: string }).version ?? "unknown
  * Instruments metrics (sessions, tokens, cost, lines of code, commits, tool durations)
  * and structured log events. All instrumentation is gated on `OPENCODE_ENABLE_TELEMETRY`.
  */
-export const OtelPlugin: Plugin = async ({ project, client }) => {
+export const OtelPlugin: Plugin = async ({ project, client, directory, worktree }) => {
   const config = loadConfig()
+  const otlpHeadersHelper = resolveHelperPath(config.otlpHeadersHelper, directory, worktree)
   let minLevel: Level = "info"
 
   const log: HandlerContext["log"] = async (level, message, extra) => {
@@ -72,14 +73,14 @@ export const OtelPlugin: Plugin = async ({ project, client }) => {
     })
   }
 
-  const { meterProvider, loggerProvider, tracerProvider } = setupOtel(
+  const { meterProvider, loggerProvider, tracerProvider } = await setupOtel(
     config.endpoint,
     config.protocol,
     config.metricsInterval,
     config.logsInterval,
     PLUGIN_VERSION,
     config.otlpHeaders,
-    config.otlpHeadersHelper,
+    otlpHeadersHelper,
   )
   await log("info", "OTel SDK initialized")
 

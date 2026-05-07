@@ -119,10 +119,16 @@ export OPENCODE_RESOURCE_ATTRIBUTES="service.version=1.2.3,deployment.environmen
 
 ### Dynamic headers
 
-Use `OPENCODE_OTLP_HEADERS_HELPER` when your collector requires short-lived authentication tokens. The helper is run only after an OTLP export fails with an authentication error (`401`/`403` for HTTP or `UNAUTHENTICATED`/`PERMISSION_DENIED` for gRPC). The plugin refreshes headers, rebuilds the exporter, and retries the failed export once.
+Use `OPENCODE_OTLP_HEADERS_HELPER` when your collector requires short-lived authentication tokens. When this is set, the plugin prewarms the helper once during startup so the first export can use fresh credentials. If a later OTLP export fails with an authentication error (`401`/`403` for HTTP or `UNAUTHENTICATED`/`PERMISSION_DENIED` for gRPC), the plugin refreshes headers again, rebuilds the exporter, and retries the failed export once.
 
 ```bash
 export OPENCODE_OTLP_HEADERS_HELPER=/path/to/opencode-otel-headers.sh
+```
+
+Use an absolute helper path. If you need the path to follow the current project, `OPENCODE_OTLP_HEADERS_HELPER` also supports `${PROJECT_ROOT}`, `${WORKTREE}`, and `${DIRECTORY}` placeholders.
+
+```bash
+export OPENCODE_OTLP_HEADERS_HELPER='${PROJECT_ROOT}/scripts/opencode-otel-headers.sh'
 ```
 
 The helper must be executable and print a JSON object to stdout:

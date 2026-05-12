@@ -281,6 +281,11 @@ describe("loadConfig", () => {
     process.env["OPENCODE_DISABLE_TRACES"] = "true"
     expect(loadConfig().disabledTraces).toEqual(new Set(TRACE_TYPES))
   })
+
+  test('disabledTraces expands numeric-style value "1" to every known trace type', () => {
+    process.env["OPENCODE_DISABLE_TRACES"] = "1"
+    expect(loadConfig().disabledTraces).toEqual(new Set(TRACE_TYPES))
+  })
 })
 
 describe("resolveLogLevel", () => {

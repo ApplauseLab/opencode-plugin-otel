@@ -10,6 +10,7 @@ export type ProbeResult = { ok: boolean; ms: number; error?: string }
 export function parseEndpoint(endpoint: string): { host: string; port: number } | null {
   try {
     const url = new URL(endpoint)
+    if (!url.hostname) return null
     const defaultPort = url.protocol === "http:" ? 80 : url.protocol === "https:" ? 443 : 4317
     return { host: url.hostname, port: url.port ? parseInt(url.port, 10) : defaultPort }
   } catch {

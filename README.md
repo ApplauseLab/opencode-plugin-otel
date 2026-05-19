@@ -89,7 +89,7 @@ All configuration is via environment variables. Set them in your shell profile (
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OPENCODE_ENABLE_TELEMETRY` | *(unset)* | Set to any non-empty value to enable the plugin |
-| `OPENCODE_OTLP_ENDPOINT` | `http://localhost:4317` | OTLP collector endpoint. For `grpc`, use the collector host/port. For `http/protobuf` and `http/json`, use the base URL and the plugin will append `/v1/traces`, `/v1/metrics`, and `/v1/logs`. |
+| `OPENCODE_OTLP_ENDPOINT` | `http://localhost:4317` | OTLP collector endpoint. Always include a URL scheme. For `grpc`, use the collector URL (for example `http://localhost:4317` or `grpc://collector:4317`). For `http/protobuf` and `http/json`, use the base URL and the plugin will append `/v1/traces`, `/v1/metrics`, and `/v1/logs`. |
 | `OPENCODE_OTLP_PROTOCOL` | `grpc` | OTLP transport protocol: `grpc`, `http/protobuf`, or `http/json` |
 | `OPENCODE_OTLP_METRICS_INTERVAL` | `60000` | Metrics export interval in milliseconds |
 | `OPENCODE_OTLP_LOGS_INTERVAL` | `5000` | Logs export interval in milliseconds |
@@ -110,6 +110,8 @@ export OPENCODE_OTLP_ENDPOINT=http://localhost:4317
 export OPENCODE_OTLP_PROTOCOL=grpc
 opencode
 ```
+
+Always set `OPENCODE_OTLP_ENDPOINT` to a full URL with a scheme. Scheme-less values like `localhost:4317` are rejected.
 
 For `OPENCODE_OTLP_PROTOCOL=http/protobuf` or `OPENCODE_OTLP_PROTOCOL=http/json`, set `OPENCODE_OTLP_ENDPOINT` to the collector base URL rather than a per-signal path. The plugin expands it to `/v1/traces`, `/v1/metrics`, and `/v1/logs` automatically.
 

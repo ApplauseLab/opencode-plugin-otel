@@ -22,12 +22,17 @@ describe("parseEndpoint", () => {
   test("returns null for invalid URLs", () => {
     expect(parseEndpoint("not a url")).toBeNull()
   })
+
+  test("returns null for URLs without a hostname", () => {
+    expect(parseEndpoint("localhost:4317")).toBeNull()
+  })
 })
 
 describe("probeEndpoint", () => {
   test("returns error for malformed URL (no scheme)", async () => {
     const result = await probeEndpoint("localhost:4317")
     expect(result.ok).toBe(false)
+    expect(result.error).toContain("invalid endpoint URL")
     expect(result.error).toBeDefined()
   })
 

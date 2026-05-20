@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 
 ---
 
+## [1.0.1](https://github.com/DEVtheOPS/opencode-plugin-otel/compare/v1.0.0...v1.0.1) (2026-05-20)
+
+
+### Bug Fixes
+
+* added protobuf exporters from [@opentelemetry](https://github.com/opentelemetry) ([19e600f](https://github.com/DEVtheOPS/opencode-plugin-otel/commit/19e600f31c3e70cf21d6ec5c145aad67edbd022f))
+* **probe:** reject scheme-less endpoint URLs ([df7a62b](https://github.com/DEVtheOPS/opencode-plugin-otel/commit/df7a62b3cd801f753d4a03342fc178fb4aac2874))
+
 ## [1.0.0](https://github.com/DEVtheOPS/opencode-plugin-otel/compare/v0.9.0...v1.0.0) (2026-05-18)
 
 

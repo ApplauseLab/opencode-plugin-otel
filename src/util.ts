@@ -145,7 +145,7 @@ export function ensureSessionSpan(
     {
       startTime: input?.startTime,
       attributes: {
-        "openinference.span.kind": "agent",
+        "openinference.span.kind": "AGENT",
         "session.id": sessionID,
         "agent.name": input?.agent ?? "unknown",
         "session.is_subagent": input?.isSubagent ?? false,

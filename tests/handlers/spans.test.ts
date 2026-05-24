@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { SpanStatusCode } from "@opentelemetry/api";
+import { SpanStatusCode, context, trace } from "@opentelemetry/api";
 import {
   AGENT_NAME,
   LLM_MODEL_NAME,
@@ -157,18 +157,62 @@ function makeToolPartUpdated(
 }
 
 describe("session spans", () => {
-  test("starts a session span on session.created", () => {
+  test("does not start a root session span on session.created", () => {
     const { ctx, tracer } = makeCtx();
     handleSessionCreated(makeSessionCreated("ses_1", 5000), ctx);
-    expect(tracer.spans).toHaveLength(1);
+    expect(tracer.spans).toHaveLength(0);
+    expect(ctx.sessionSpans.has("ses_1")).toBe(false);
+  });
+
+  test("starts a root session span lazily when work begins", () => {
+    const { ctx, tracer } = makeCtx();
+    handleSessionCreated(makeSessionCreated("ses_1", 5000), ctx);
+    startMessageSpan(
+      "ses_1",
+      "msg_1",
+      "claude-3-5-sonnet",
+      "anthropic",
+      6000,
+      ctx,
+    );
+    expect(tracer.spans).toHaveLength(2);
     expect(tracer.spans[0]!.name).toBe("opencode.session");
     expect(tracer.spans[0]!.startTime).toBe(5000);
     expect(ctx.sessionSpans.has("ses_1")).toBe(true);
   });
 
+  test("lazy root session span uses captured upstream trace context", () => {
+    const { ctx, tracer } = makeCtx();
+    const upstream = makeTracer().startSpan("atelier-api");
+    handleSessionCreated(makeSessionCreated("ses_1", 5000), ctx);
+    ctx.sessionParentContexts.set(
+      "ses_1",
+      trace.setSpan(context.active(), upstream as unknown as Span),
+    );
+    startMessageSpan(
+      "ses_1",
+      "msg_1",
+      "claude-3-5-sonnet",
+      "anthropic",
+      6000,
+      ctx,
+    );
+    expect(tracer.spans[0]!.name).toBe("opencode.session");
+    expect(tracer.spans[0]!.parentSpan).toBe(upstream);
+    expect(tracer.spans[1]!.parentSpan).toBe(tracer.spans[0]);
+  });
+
   test("session span carries session.id attribute", () => {
     const { ctx, tracer } = makeCtx();
     handleSessionCreated(makeSessionCreated("ses_1"), ctx);
+    startMessageSpan(
+      "ses_1",
+      "msg_1",
+      "claude-3-5-sonnet",
+      "anthropic",
+      1000,
+      ctx,
+    );
     expect(tracer.spans[0]!.attributes["session.id"]).toBe("ses_1");
     expect(tracer.spans[0]!.attributes[SESSION_ID]).toBe("ses_1");
   });
@@ -176,6 +220,14 @@ describe("session spans", () => {
   test("session span is tagged as an OpenInference agent span", () => {
     const { ctx, tracer } = makeCtx();
     handleSessionCreated(makeSessionCreated("ses_1"), ctx);
+    startMessageSpan(
+      "ses_1",
+      "msg_1",
+      "claude-3-5-sonnet",
+      "anthropic",
+      1000,
+      ctx,
+    );
     expect(tracer.spans[0]!.attributes[OPENINFERENCE_SPAN_KIND]).toBe(
       OpenInferenceSpanKind.AGENT,
     );
@@ -185,21 +237,46 @@ describe("session spans", () => {
   test("session span carries is_subagent=false for root session", () => {
     const { ctx, tracer } = makeCtx();
     handleSessionCreated(makeSessionCreated("ses_root"), ctx);
+    startMessageSpan(
+      "ses_root",
+      "msg_1",
+      "claude-3-5-sonnet",
+      "anthropic",
+      1000,
+      ctx,
+    );
     expect(tracer.spans[0]!.attributes["session.is_subagent"]).toBe(false);
   });
 
-  test("session span carries is_subagent=true for subagent session", () => {
+  test("session span carries is_subagent=true for subagent session with parent span", () => {
     const { ctx, tracer } = makeCtx();
-    handleSessionCreated(
-      makeSessionCreated("ses_child", 1000, "ses_parent"),
+    handleSessionCreated(makeSessionCreated("ses_parent"), ctx);
+    startMessageSpan(
+      "ses_parent",
+      "msg_1",
+      "claude-3-5-sonnet",
+      "anthropic",
+      1000,
       ctx,
     );
-    expect(tracer.spans[0]!.attributes["session.is_subagent"]).toBe(true);
+    handleSessionCreated(
+      makeSessionCreated("ses_child", 2000, "ses_parent"),
+      ctx,
+    );
+    expect(tracer.spans[2]!.attributes["session.is_subagent"]).toBe(true);
   });
 
   test("ends session span with OK status on session.idle", () => {
     const { ctx, tracer } = makeCtx();
     handleSessionCreated(makeSessionCreated("ses_1"), ctx);
+    startMessageSpan(
+      "ses_1",
+      "msg_1",
+      "claude-3-5-sonnet",
+      "anthropic",
+      1000,
+      ctx,
+    );
     handleSessionIdle(makeSessionIdle("ses_1"), ctx);
     const span = tracer.spans[0]!;
     expect(span.ended).toBe(true);
@@ -210,6 +287,14 @@ describe("session spans", () => {
   test("sets session total attributes before ending on idle", () => {
     const { ctx, tracer } = makeCtx();
     handleSessionCreated(makeSessionCreated("ses_1"), ctx);
+    startMessageSpan(
+      "ses_1",
+      "msg_1",
+      "claude-3-5-sonnet",
+      "anthropic",
+      1000,
+      ctx,
+    );
     ctx.sessionTotals.set("ses_1", {
       startMs: Date.now() - 100,
       tokens: 250,
@@ -227,6 +312,14 @@ describe("session spans", () => {
   test("ends session span with ERROR status on session.error", () => {
     const { ctx, tracer } = makeCtx();
     handleSessionCreated(makeSessionCreated("ses_1"), ctx);
+    startMessageSpan(
+      "ses_1",
+      "msg_1",
+      "claude-3-5-sonnet",
+      "anthropic",
+      1000,
+      ctx,
+    );
     handleSessionError(
       makeSessionError("ses_1", { name: "NetworkError" }),
       ctx,
@@ -240,6 +333,14 @@ describe("session spans", () => {
   test("error message is propagated to session span status", () => {
     const { ctx, tracer } = makeCtx();
     handleSessionCreated(makeSessionCreated("ses_1"), ctx);
+    startMessageSpan(
+      "ses_1",
+      "msg_1",
+      "claude-3-5-sonnet",
+      "anthropic",
+      1000,
+      ctx,
+    );
     handleSessionError(
       makeSessionError("ses_1", { name: "TimeoutError" }),
       ctx,
@@ -258,6 +359,14 @@ describe("session spans", () => {
   test("session.error with undefined sessionID does not end any span", () => {
     const { ctx, tracer } = makeCtx();
     handleSessionCreated(makeSessionCreated("ses_1"), ctx);
+    startMessageSpan(
+      "ses_1",
+      "msg_1",
+      "claude-3-5-sonnet",
+      "anthropic",
+      1000,
+      ctx,
+    );
     handleSessionError(
       makeSessionError(undefined, { name: "UnknownError" }),
       ctx,
@@ -269,13 +378,21 @@ describe("session spans", () => {
   test("subagent span — parent session span is in sessionSpans before child is created", () => {
     const { ctx, tracer } = makeCtx();
     handleSessionCreated(makeSessionCreated("ses_parent"), ctx);
+    startMessageSpan(
+      "ses_parent",
+      "msg_1",
+      "claude-3-5-sonnet",
+      "anthropic",
+      1000,
+      ctx,
+    );
     handleSessionCreated(
       makeSessionCreated("ses_child", 2000, "ses_parent"),
       ctx,
     );
-    expect(tracer.spans).toHaveLength(2);
-    expect(tracer.spans[1]!.name).toBe("opencode.session");
-    expect(tracer.spans[1]!.parentSpan).toBe(tracer.spans[0]);
+    expect(tracer.spans).toHaveLength(3);
+    expect(tracer.spans[2]!.name).toBe("opencode.session");
+    expect(tracer.spans[2]!.parentSpan).toBe(tracer.spans[0]);
   });
 
   test("subagent span — no error when parent session span is absent", () => {
@@ -286,7 +403,7 @@ describe("session spans", () => {
         ctx,
       ),
     ).not.toThrow();
-    expect(tracer.spans).toHaveLength(1);
+    expect(tracer.spans).toHaveLength(0);
   });
 });
 
@@ -719,7 +836,11 @@ describe("OPENCODE_DISABLE_TRACES=llm", () => {
   test("session spans still created when only llm disabled", () => {
     const { ctx, tracer } = makeCtx("proj_test", [], ["llm"]);
     handleSessionCreated(makeSessionCreated("ses_1"), ctx);
-    expect(tracer.spans).toHaveLength(1);
+    handleMessagePartUpdated(
+      makeToolPartUpdated("running", { sessionID: "ses_1" }),
+      ctx,
+    );
+    expect(tracer.spans).toHaveLength(2);
     expect(tracer.spans[0]!.name).toBe("opencode.session");
   });
 });
@@ -775,7 +896,8 @@ describe("OPENCODE_DISABLE_TRACES=tool", () => {
   test("session spans still created when only tool disabled", () => {
     const { ctx, tracer } = makeCtx("proj_test", [], ["tool"]);
     handleSessionCreated(makeSessionCreated("ses_1"), ctx);
-    expect(tracer.spans).toHaveLength(1);
+    startMessageSpan("ses_1", "msg_1", "claude", "anthropic", 1000, ctx);
+    expect(tracer.spans).toHaveLength(2);
     expect(tracer.spans[0]!.name).toBe("opencode.session");
   });
 });

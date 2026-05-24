@@ -519,6 +519,7 @@ export function startMessageSpan(
   if (ctx.messageSpans.has(msgKey)) return;
   const sessionSpan = ensureSessionSpan(sessionID, ctx, {
     agent: ctx.sessionTotals.get(sessionID)?.agent,
+    startTime: ctx.sessionTotals.get(sessionID)?.startMs,
   });
   const parentCtx = sessionSpan
     ? trace.setSpan(context.active(), sessionSpan)

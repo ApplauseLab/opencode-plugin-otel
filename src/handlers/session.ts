@@ -39,17 +39,15 @@ export function handleSessionCreated(
   }
   ensureSessionTotals(sessionID, ctx, { startMs: createdAt });
 
-  // WARNING: disabling "session" traces while "llm" or "tool" traces remain enabled
-  // will cause those child spans to be emitted as unlinked root spans with no parent.
-  // There is no session span to parent them to. If you need a connected trace hierarchy,
-  // either enable all three trace types or disable all of them together.
-  if (!ctx.sessionSpans.has(sessionID)) {
-    const parentSpan = parentID ? ctx.sessionSpans.get(parentID) : undefined;
-    const spanCtx = parentSpan
-      ? trace.setSpan(context.active(), parentSpan)
-      : context.active();
-    if (parentSpan) ctx.sessionParentContexts.set(sessionID, spanCtx);
-
+  // Root session spans are started lazily from chat.message after Atelier trace
+  // metadata has been captured. Starting here would permanently parent them to
+  // the runner-local context because span parents cannot be changed later.
+  const parentSpan = parentID ? ctx.sessionSpans.get(parentID) : undefined;
+  if (parentSpan && !ctx.sessionSpans.has(sessionID)) {
+    ctx.sessionParentContexts.set(
+      sessionID,
+      trace.setSpan(context.active(), parentSpan),
+    );
     const sessionSpan = ensureSessionSpan(sessionID, ctx, {
       startTime: createdAt,
       isSubagent,

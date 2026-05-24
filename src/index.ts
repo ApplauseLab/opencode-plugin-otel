@@ -232,7 +232,10 @@ export const OtelPlugin: Plugin = async ({
       captureAtelierTraceContext(input.sessionID, output.parts, ctx);
       const totals = ensureSessionTotals(input.sessionID, ctx, { agent });
       totals.agent = agent;
-      const sessionSpan = ensureSessionSpan(input.sessionID, ctx, { agent });
+      const sessionSpan = ensureSessionSpan(input.sessionID, ctx, {
+        agent,
+        startTime: totals.startMs,
+      });
       if (sessionSpan) sessionSpan.setAttribute(AGENT_NAME, agent);
       const promptText = output.parts
         .map((part) => {

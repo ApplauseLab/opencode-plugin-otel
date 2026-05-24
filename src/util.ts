@@ -1,4 +1,4 @@
-import { context, propagation, ROOT_CONTEXT } from "@opentelemetry/api";
+import { context, ROOT_CONTEXT, trace, TraceFlags } from "@opentelemetry/api";
 import { MAX_PENDING } from "./types.ts";
 import type { HandlerContext } from "./types.ts";
 
@@ -78,6 +78,30 @@ function metadataValue(metadata: Record<string, unknown>, key: string) {
   return typeof value === "string" && value ? value : undefined;
 }
 
+function contextFromTraceparent(traceparent: string) {
+  const match = traceparent.match(
+    /^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$/i,
+  );
+  if (!match) return undefined;
+  const [, traceId, spanId, flags] = match;
+  if (
+    !traceId ||
+    !spanId ||
+    traceId === "0".repeat(32) ||
+    spanId === "0".repeat(16)
+  )
+    return undefined;
+  return trace.setSpan(
+    ROOT_CONTEXT,
+    trace.wrapSpanContext({
+      traceId: traceId.toLowerCase(),
+      spanId: spanId.toLowerCase(),
+      traceFlags: Number.parseInt(flags ?? "00", 16) & TraceFlags.SAMPLED,
+      isRemote: true,
+    }),
+  );
+}
+
 /**
  * Captures trace context smuggled through opencode text-part metadata.
  * opencode server plugins do not receive HTTP request headers, but text part
@@ -95,12 +119,8 @@ export function captureAtelierTraceContext(
       metadataValue(metadata, "traceparent") ??
       metadataValue(metadata, "atelier.traceparent");
     if (!traceparent) continue;
-    const carrier: Record<string, string> = { traceparent };
-    const tracestate =
-      metadataValue(metadata, "tracestate") ??
-      metadataValue(metadata, "atelier.tracestate");
-    if (tracestate) carrier.tracestate = tracestate;
-    const parentContext = propagation.extract(ROOT_CONTEXT, carrier);
+    const parentContext = contextFromTraceparent(traceparent);
+    if (!parentContext) continue;
     setBoundedMap(ctx.sessionParentContexts, sessionID, parentContext);
     return parentContext;
   }
